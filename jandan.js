@@ -1,14 +1,21 @@
 var superagent = require('superagent'),
     cheerio = require('cheerio'),
     fs = require('fs'),
+    path = require('path'),
+    crypto = require('crypto'),
     request = require('request');
 
-var download = function(uri, filename, callback){
-  request.head(uri, function(err, res, body){
-      console.log('content-type:', res.headers['content-type']);
-      console.log('content-length:', res.headers['content-length']);
+var hash = function(str) {
+    return crypto.createHash('md5').update(str).digest('hex');
+}
 
-      request(uri).pipe(fs.createWriteStream(filename)).on('close', callback);
+var download = function(uri, filename, callback){
+    console.log(uri);
+    console.log(filename);
+    request.head(uri, function(err, res, body){
+        //console.log('content-type:', res.headers['content-type']);
+        //console.log('content-length:', res.headers['content-length']);
+        request(uri).pipe(fs.createWriteStream(filename));
     });
 };
 
@@ -31,9 +38,15 @@ superagent.get(jandanUrl)
             // 没id的是广告
             if (!id) return true;
 
-            var image = $element.find('img').attr('src');
+            var imageUrl = $element.find('img').attr('src');
             var oo = $element.find('#cos_support-'+id).html();
             var xx = $element.find('#cos_unsupport-'+id).html();
+
+            var extension=path.extname(imageUrl);
+            var imageHash = crypto.createHash('md5').update(imageUrl).digest('hex');
+            var filename = 'images/'+imageHash+extension;
+
+            download(imageUrl, filename);
 
             items.push({
                 image: $element.find('img').attr('src'),
@@ -41,5 +54,4 @@ superagent.get(jandanUrl)
                 xx: xx
             });
         });
-        console.log(items);
     });
