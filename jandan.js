@@ -1,4 +1,24 @@
 #! /usr/bin/env node
+var program = require('commander');
+program
+    .version('0.0.1')
+    .option('-s, --start [value]', 'start page')
+    .option('-e, --end [value]', 'end page')
+    .parse(process.argv);
+
+if (!program.end || !program.start || program.start >= program.end) {
+    console.log('请输入正确的参数 例:node jandan.js --start=1500  --end=1600');
+    return
+}
+
+// 起始页
+var page = program.start;
+// 终止页
+var end = program.end;
+
+// 妹子图地址
+var meiziUrl = 'http://jandan.net/ooxx/page-';
+
 var superagent = require('superagent'),
     cheerio = require('cheerio'),
     fs = require('fs'),
@@ -6,7 +26,6 @@ var superagent = require('superagent'),
     crypto = require('crypto'),
     mongoose = require('mongoose'),
     mkdirp = require('mkdirp'),
-    program = require('commander'),
     async = require('async');
 
 // 图片名字hash一下，避免重名
@@ -70,13 +89,6 @@ var parseContent = function(page, url, content)
     });
 
 }
-
-// 妹子图地址
-var meiziUrl = 'http://jandan.net/ooxx/page-';
-// 起始页
-var page = 1500;
-// 终止页
-var end = 1504;
 
 async.whilst(
     function () {return page < end; },
