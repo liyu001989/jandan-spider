@@ -4,6 +4,8 @@ program
     .version('0.0.1')
     .option('-s, --start [value]', 'start page')
     .option('-e, --end [value]', 'end page')
+    .option('-d, --divide', '是否按页数分目录')
+    .option('-t, --type [value]', 'meizi or wuliao default meizi', /^(meizi|wuliao)$/i, 'meizi')
     .parse(process.argv);
 
 if (!program.end || !program.start || program.start >= program.end) {
@@ -15,9 +17,14 @@ if (!program.end || !program.start || program.start >= program.end) {
 var page = program.start;
 // 终止页
 var end = program.end;
-
-// 妹子图地址
+// 妹子或无聊图地址
 var meiziUrl = 'http://jandan.net/ooxx/page-';
+var wuliaoUrl = 'http://jandan.net/pic/page-';
+
+var defaultUrl = program.type == 'meizi' ? meiziUrl : wuliaoUrl;
+var defaultDir = program.type == 'meizi' ? 'images/meizi' : 'images/wuliao';
+// 不知道这个词对不对，每页的图片一个目录
+var divide = program.divide;
 
 var superagent = require('superagent'),
     cheerio = require('cheerio'),
@@ -37,12 +44,14 @@ var hash = function(str) {
 var download = function(uri, filename, callback){
     superagent.get(uri)
         .end(function(err, res) {
-            fs.writeFile(filename, res.body)
+            if (!err && 'body' in res) {
+                fs.writeFile(filename, res.body)
+            }
             callback(null, uri);
         });
 };
 
-var parseContent = function(page, url, content)
+var parseContent = function(content, page)
 {
     var $ = cheerio.load(content);
     var items = [];
@@ -56,13 +65,23 @@ var parseContent = function(page, url, content)
         // 没id的是广告
         if (!id) return true;
 
-        var imageUrl = $element.find('img').attr('src');
-        var oo = $element.find('#cos_support-'+id).html();
-        var xx = $element.find('#cos_unsupport-'+id).html();
+        // 找到图片
+        var $img = $element.find('img');
+        if (!$img) return true;
 
+        var imageUrl = $img.attr('src');
+        // 简单的gif会有一张缩略图, 所以这里不要缩略图
         var extension=path.extname(imageUrl);
+        if (extension == '.gif' && $img.attr('org_src')) {
+            var imageUrl = $img.attr('org_src');
+        }
+
         var imageHash = crypto.createHash('md5').update(imageUrl).digest('hex');
         var filename = 'images/'+imageHash+extension;
+
+        //oo xx 数量可以存下来，也可以做个过滤
+        var oo = $element.find('#cos_support-'+id).html();
+        var xx = $element.find('#cos_unsupport-'+id).html();
 
         items.push({
             image: imageUrl,
@@ -80,30 +99,40 @@ var parseContent = function(page, url, content)
         // 暂时认为煎蛋的url会唯一对应一个图片，抓过的就不抓了
         //url hash
         var imageHash = crypto.createHash('md5').update(url).digest('hex');
-        mkdirp('images/'+page);
-        var filename = 'images/'+ page +'/'+imageHash+extension;
+
+        // 放在images目录下面
+        var dir = defaultDir;
+        if (divide) {
+            var dir = dir+'/'+page;
+        }
+        if (!fs.existsSync(dir)){
+            mkdirp(dir);
+        }
+        var filename = dir +'/'+imageHash+extension;
+
         download(url, filename, callback);
     }, function (err, result) {
-        console.log('final:');
-        console.log(result);
+        if (err) console.log(err);
+
+        console.log(page + ' done');
     });
 
 }
 
 async.whilst(
-    function () {return page < end; },
+    function () {return page <= end; },
     function (callback) {
-        page++;
+        var targetUrl = defaultUrl + page;
 
-        var targetUrl = meiziUrl + page;
         superagent.get(targetUrl)
             .end(function(err, sres) {
                 if (err) {
                     return next(err);
                 }
 
-                parseContent(page, meiziUrl, sres.text);
-                 callback(null, page);
+                parseContent(sres.text, page);
+                page++;
+                callback(null, page);
             });
     },
     function (err, n) {
