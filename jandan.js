@@ -5,6 +5,7 @@ program
     .option('-s, --start [value]', 'start page')
     .option('-e, --end [value]', 'end page')
     .option('-d, --divide', '是否按页数分目录')
+    .option('-g, --gzip', '打包输出为images.tar.gz')
     .option('-t, --type [value]', 'meizi or wuliao default meizi', /^(meizi|wuliao)$/i, 'meizi')
     .parse(process.argv);
 
@@ -33,6 +34,8 @@ var superagent = require('superagent'),
     crypto = require('crypto'),
     mongoose = require('mongoose'),
     mkdirp = require('mkdirp'),
+    eventproxy = require('eventproxy'),
+    targz = require('tar.gz'),
     async = require('async');
 
 // 图片名字hash一下，避免重名
@@ -115,12 +118,15 @@ var parseContent = function(content, page)
         if (err) console.log(err);
 
         console.log(page + ' done');
+        ep.emit('download_page');
     });
 
 }
 
 async.whilst(
-    function () {return page <= end; },
+    function () {
+        return page <= end;
+    },
     function (callback) {
         var targetUrl = defaultUrl + page;
 
@@ -138,3 +144,16 @@ async.whilst(
     function (err, n) {
     }
 )
+
+
+ep = new eventproxy();
+// 1501 到 1500 页   1501 - 1500 +1 = 2 两页数据完成后执行
+ep.after('download_page', end - page + 1, function () {
+    if (program.gzip) {
+        var read = targz().createReadStream('images');
+        var write = fs.createWriteStream('images.tar.gz');
+        read.pipe(write);
+    }
+
+    console.log('total done');
+});

@@ -19,13 +19,13 @@ npm install 然后根据命令提示操作
     -s, --start [value]  start page
     -e, --end [value]    end page
     -d, --divide         是否按页数分目录
+    -g, --gzip           打包输出为images.tar.gz
     -t, --type [value]   meizi or wuliao default meizi
 
 例: node jandan.js --start=1500 --end=1600 --type=meizi -d
 
 ### TODO
 - 存入数据库，避免抓重复的
-- 增加参数，支持直接打包
 
 ### 参考资料
 
@@ -33,6 +33,7 @@ npm install 然后根据命令提示操作
 - [superagent](http://visionmedia.github.io/superagent/)
 - [cheerio](https://github.com/cheeriojs/cheerio)
 - [async](https://github.com/caolan/async)
+- [eventproxy](https://github.com/JacksonTian/eventproxy)
 
 ### License
 
